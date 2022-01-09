@@ -13,6 +13,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers.event import async_track_state_change_event, async_track_time_change
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -21,6 +22,8 @@ from homeassistant.util import dt as dt_util
 from . import DOMAIN, PLATFORMS
 
 _LOGGER = logging.getLogger(__name__)
+
+SERVICE_RESET = "reset"
 
 ATTR_MIN_VALUE = "min_value"
 ATTR_MIN_ENTITY_ID = "min_entity_id"
@@ -89,6 +92,14 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     async_add_entities(
         [DailyMinMaxSensor(entity_ids, name, sensor_type, round_digits, time)])
 
+    platform = entity_platform.async_get_current_platform()
+
+    platform.async_register_entity_service(
+        SERVICE_RESET,
+        {},
+        "async_reset",
+    )
+
 
 def calc_min(sensor_values):
     """Calculate min value, honoring unknown states."""
@@ -145,7 +156,8 @@ class DailyMinMaxSensor(RestoreEntity, SensorEntity):
 
         self.async_on_remove(
             async_track_time_change(
-                self.hass, self.reset, hour=[self._time.hour], minute=[self._time.minute], second=[self._time.second]
+                self.hass, self.reset, hour=[self._time.hour], minute=[
+                    self._time.minute], second=[self._time.second]
             )
         )
 
@@ -269,4 +281,8 @@ class DailyMinMaxSensor(RestoreEntity, SensorEntity):
         self.min_entity_id = self.max_entity_id = self.last_entity_id = None
         self.async_write_ha_state()
 
-
+    async def async_reset(self, **kwargs):
+        _LOGGER.debug("Reset %s", self._name)
+        self.min_value = self.max_value = self.last
+        self.min_entity_id = self.max_entity_id = self.last_entity_id = None
+        self.async_write_ha_state()

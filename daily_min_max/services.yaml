@@ -1,3 +1,10 @@
 reload:
   name: Reload
   description: Reload all daily min max entities.
+
+reset:
+  name: Reset
+  description: Resets the counter of a daily min max sensor.
+  target:
+    entity:
+      domain: sensor
