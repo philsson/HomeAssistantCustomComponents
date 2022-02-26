@@ -16,4 +16,11 @@ Track the min or max value of a sensor over the course of a day. The sensor will
     - sensor.outdoor_temp
     - sensor.indoor_temp
   time: "03:30:00"
+
+- platform: daily_min_max
+  name: Manually reset Only
+  type: min
+  entity_ids:
+    - sensor.fuel_consumption
+  manual_reset_only: True
 ```

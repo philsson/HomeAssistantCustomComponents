@@ -46,6 +46,7 @@ ATTR_TO_PROPERTY = [
 CONF_ENTITY_IDS = "entity_ids"
 CONF_ROUND_DIGITS = "round_digits"
 CONF_TIME = "time"
+CONF_MANUAL_RESET_ONLY = "manual_reset_only"
 
 ICON = "mdi:calculator"
 
@@ -72,7 +73,8 @@ PLATFORM_SCHEMA = vol.All(
             vol.Optional(CONF_NAME): cv.string,
             vol.Required(CONF_ENTITY_IDS): cv.entity_ids,
             vol.Optional(CONF_ROUND_DIGITS, default=2): vol.Coerce(int),
-            vol.Optional(CONF_TIME, default="00:00:00"): cv.string
+            vol.Optional(CONF_TIME, default="00:00:00"): cv.string,
+            vol.Optional(CONF_MANUAL_RESET_ONLY, default=False): cv.boolean
         }
     ),
     valid_time
@@ -86,11 +88,12 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     sensor_type = config.get(CONF_TYPE)
     round_digits = config.get(CONF_ROUND_DIGITS)
     time = config.get(CONF_TIME)
+    manual_reset_only = config.get(CONF_MANUAL_RESET_ONLY)
 
     await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
 
     async_add_entities(
-        [DailyMinMaxSensor(entity_ids, name, sensor_type, round_digits, time)])
+        [DailyMinMaxSensor(entity_ids, name, sensor_type, round_digits, time, manual_reset_only)])
 
     platform = entity_platform.async_get_current_platform()
 
@@ -127,11 +130,12 @@ def calc_max(sensor_values):
 
 class DailyMinMaxSensor(RestoreEntity, SensorEntity):
 
-    def __init__(self, entity_ids, name, sensor_type, round_digits, time):
+    def __init__(self, entity_ids, name, sensor_type, round_digits, time, manual_reset_only):
         self._entity_ids = entity_ids
         self._sensor_type = sensor_type
         self._time = dt_util.parse_time(time)
         self._round_digits = round_digits
+        self._manual_reset_only = manual_reset_only
 
         if name:
             self._name = name
@@ -277,6 +281,8 @@ class DailyMinMaxSensor(RestoreEntity, SensorEntity):
 
     @callback
     def reset(self, now):
+        if self._manual_reset_only:
+            return
         self.min_value = self.max_value = self.last
         self.min_entity_id = self.max_entity_id = self.last_entity_id = None
         self.async_write_ha_state()
