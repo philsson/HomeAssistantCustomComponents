@@ -222,6 +222,11 @@ class DailyMinMaxSensor(RestoreEntity, SensorEntity):
         """Return the icon to use in the frontend, if any."""
         return ICON
 
+    @property
+    def unique_id(self):
+        """Return the unique id."""
+        return "Daily_Min_Max_for_" + self._name.replace(' ', '_')
+    
     @callback
     def _async_sensor_state_listener(self, event):
         """Handle the sensor state changes."""
