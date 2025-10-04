@@ -3,10 +3,11 @@
   "name": "Daily Min/Max",
   "documentation": "https://github.com/philsson/HomeAssistantCustomComponents",
   "issue_tracker": "https://github.com/philsson/HomeAssistantCustomComponents/issues",
+  "repository": "https://github.com/larrelandin/home_assistant_daily_min_max",
   "codeowners": [
-    "@philsson"
+    "@philsson", "@larrelandin"
   ],
   "quality_scale": "internal",
   "iot_class": "local_push",
-  "version": "1.1.0"
+  "version": "1.2.0"
 }
