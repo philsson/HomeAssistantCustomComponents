@@ -1,5 +1,6 @@
 import logging
 from datetime import time as dtime
+import hashlib
 
 import voluptuous as vol
 from homeassistant.components.sensor import (
@@ -47,6 +48,7 @@ CONF_ENTITY_IDS = "entity_ids"
 CONF_ROUND_DIGITS = "round_digits"
 CONF_TIME = "time"
 CONF_MANUAL_RESET_ONLY = "manual_reset_only"
+CONF_UNIQUE_ID = "unique_id"
 
 ICON = "mdi:calculator"
 
@@ -64,6 +66,7 @@ PLATFORM_SCHEMA = vol.All(
                 cv.string, vol.In(SENSOR_TYPES.values())
             ),
             vol.Optional(CONF_NAME): cv.string,
+            vol.Optional(CONF_UNIQUE_ID): cv.string,
             vol.Required(CONF_ENTITY_IDS): cv.entity_ids,
             vol.Optional(CONF_ROUND_DIGITS, default=2): vol.Coerce(int),
             vol.Optional(CONF_TIME, default="00:00:00"): cv.string,
@@ -100,13 +103,29 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     round_digits = config[CONF_ROUND_DIGITS]
     time_str = config[CONF_TIME]
     manual_reset_only = config[CONF_MANUAL_RESET_ONLY]
+    yaml_unique = config.get(CONF_UNIQUE_ID)
 
     reset_time = dtime.fromisoformat(time_str)
 
     await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
 
+    # Create a stable unique_id for this aggregated sensor so it can be tracked
+    # in the entity registry. Use YAML value if provided, otherwise a short sha1
+    # of the sorted entity_ids + sensor_type.
+    if yaml_unique:
+        unique_id = yaml_unique
+    else:
+        hash_source = ",".join(sorted(entity_ids)) + "|" + sensor_type
+        unique_id = f"{DOMAIN}_{sensor_type}_{hashlib.sha1(hash_source.encode()).hexdigest()[:12]}"
+
     entity = DailyMinMaxSensor(
-        entity_ids, name, sensor_type, round_digits, reset_time, manual_reset_only
+        entity_ids,
+        name,
+        sensor_type,
+        round_digits,
+        reset_time,
+        manual_reset_only,
+        unique_id,
     )
     async_add_entities([entity])
 
@@ -119,7 +138,16 @@ class DailyMinMaxSensor(RestoreSensor, SensorEntity):
     _attr_should_poll = False
     _attr_icon = ICON
 
-    def __init__(self, entity_ids, name, sensor_type, round_digits, reset_time, manual_reset_only):
+    def __init__(
+        self,
+        entity_ids,
+        name,
+        sensor_type,
+        round_digits,
+        reset_time,
+        manual_reset_only,
+        unique_id=None,
+    ):
         self._entity_ids = entity_ids
         self._sensor_type = sensor_type
         self._reset_time = reset_time
@@ -128,6 +156,9 @@ class DailyMinMaxSensor(RestoreSensor, SensorEntity):
         self._name = name or f"{sensor_type.capitalize()} sensor"
         self._unit_of_measurement = None
         self._unit_of_measurement_mismatch = False
+        # Set stable unique id so Home Assistant's entity registry can manage the entity
+        if unique_id:
+            self._attr_unique_id = unique_id
         self.min_value = self.max_value = self.last = None
         self.min_entity_id = self.max_entity_id = self.last_entity_id = None
         self.count_sensors = len(entity_ids)
